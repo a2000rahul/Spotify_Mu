@@ -1,366 +1,105 @@
-// Dark Mode Triggered by Click
-const themeToggle = document.querySelector('#flexSwitchCheckChecked');
-themeToggle.addEventListener('click', changeTheme);
+const timeEl = document.getElementById('time');
+const dateEl = document.getElementById('date');
+const currentWeatherItemsEl = document.getElementById('current-weather-items');
+const timezone = document.getElementById('time-zone');
+const countryEl = document.getElementById('country');
+const weatherForecastEl = document.getElementById('weather-forecast');
+const currentTempEl = document.getElementById('current-temp');
 
-// User Theme Preference
-const userTheme = localStorage.getItem('theme');
-if (userTheme === 'dark') {
-	themeToggle.click();
+
+const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const API_KEY ='f2c6104b440715f319e79f9136719fad';
+
+setInterval(() => {
+    const time = new Date();
+    const month = time.getMonth();
+    const date = time.getDate();
+    const day = time.getDay();
+    const hour = time.getHours();
+    const hoursIn12HrFormat = hour >= 13 ? hour %12: hour
+    const minutes = time.getMinutes();
+    const ampm = hour >=12 ? 'PM' : 'AM'
+
+    timeEl.innerHTML = (hoursIn12HrFormat < 10? '0'+hoursIn12HrFormat : hoursIn12HrFormat) + ':' + (minutes < 10? '0'+minutes: minutes)+ ' ' + `<span id="am-pm">${ampm}</span>`
+
+    dateEl.innerHTML = days[day] + ', ' + date+ ' ' + months[month]
+
+}, 1000);
+
+getWeatherData()
+function getWeatherData () {
+    navigator.geolocation.getCurrentPosition((success) => {
+        
+        let {latitude, longitude } = success.coords;
+
+        fetch(`https://api.openweathermap.org/data/2.5/onecall?lat=${latitude}&lon=${longitude}&exclude=hourly,minutely&units=metric&appid=${API_KEY}`).then(res => res.json()).then(data => {
+
+        console.log(data)
+        showWeatherData(data);
+        })
+
+    })
 }
 
-// Dark Mode Theme Change
-function changeTheme() {
-	document.querySelector('body').classList.toggle('dark');
-	if (document.querySelector('body').classList.contains('dark')) {
-		localStorage.setItem('theme', 'dark');
-	} else {
-		localStorage.setItem('theme', 'light');
-	}
+function showWeatherData (data){
+    let {humidity, pressure, sunrise, sunset, wind_speed} = data.current;
+
+    timezone.innerHTML = data.timezone;
+    countryEl.innerHTML = data.lat + 'N ' + data.lon+'E'
+
+    currentWeatherItemsEl.innerHTML = 
+    `<div class="weather-item">
+        <div>Humidity</div>
+        <div>${humidity}%</div>
+    </div>
+    <div class="weather-item">
+        <div>Pressure</div>
+        <div>${pressure}</div>
+    </div>
+    <div class="weather-item">
+        <div>Wind Speed</div>
+        <div>${wind_speed}</div>
+    </div>
+
+    <div class="weather-item">
+        <div>Sunrise</div>
+        <div>${window.moment(sunrise * 1000).format('HH:mm a')}</div>
+    </div>
+    <div class="weather-item">
+        <div>Sunset</div>
+        <div>${window.moment(sunset*1000).format('HH:mm a')}</div>
+    </div>
+    
+    
+    `;
+
+    let otherDayForcast = ''
+    data.daily.forEach((day, idx) => {
+        if(idx == 0){
+            currentTempEl.innerHTML = `
+            <img src="http://openweathermap.org/img/wn//${day.weather[0].icon}@4x.png" alt="weather icon" class="w-icon">
+            <div class="other">
+                <div class="day">${window.moment(day.dt*1000).format('dddd')}</div>
+                <div class="temp">Night - ${day.temp.night}&#176;C</div>
+                <div class="temp">Day - ${day.temp.day}&#176;C</div>
+            </div>
+            
+            `
+        }else{
+            otherDayForcast += `
+            <div class="weather-forecast-item">
+                <div class="day">${window.moment(day.dt*1000).format('ddd')}</div>
+                <img src="http://openweathermap.org/img/wn/${day.weather[0].icon}@2x.png" alt="weather icon" class="w-icon">
+                <div class="temp">Night - ${day.temp.night}&#176;C</div>
+                <div class="temp">Day - ${day.temp.day}&#176;C</div>
+            </div>
+            
+            `
+        }
+    })
+
+
+    weatherForecastEl.innerHTML = otherDayForcast;
 }
-
-// Hover Function for Mobile
-document.addEventListener('touchstart', function () {}, true);
-
-// Variables for API & Location Heading
-const apiKey = '';
-const apiWeather = 'https://api.openweathermap.org/data/2.5/weather';
-const apiOneCall = 'https://api.openweathermap.org/data/2.5/onecall';
-let units = 'imperial';
-const locationHeading = document.querySelector('#location');
-const geolocationButton = document.querySelector('#geolocation-btn');
-
-// User Location Preference
-const userLocation = localStorage.getItem('location');
-if (userLocation) {
-	updateWeatherByName(userLocation);
-} else {
-	updateWeatherByName('New York');
-}
-
-// Call API by City Name
-function updateWeatherByName(location) {
-	axios
-		.get(`${apiWeather}?q=${location}&appid=${apiKey}&units=${units}`)
-		.then(displayCurrentTemperature, function () {
-			alert(
-				'There was a problem with your request! Try again or check back later.'
-			);
-		});
-}
-
-// Call API by Geolocation
-geolocationButton.addEventListener('click', function () {
-	navigator.geolocation.getCurrentPosition(getLocation);
-});
-
-function getLocation(position) {
-	const lon = position.coords.longitude;
-	const lat = position.coords.latitude;
-
-	axios
-		.get(`${apiWeather}?lat=${lat}&lon=${lon}&appid=${apiKey}&units=${units}`)
-		.then(displayCurrentTemperature);
-}
-
-// Call API by Search Functionality
-function searchCity(event) {
-	event.preventDefault();
-	const searchInput = document.querySelector('#search-input').value;
-	if (searchInput) {
-		updateWeatherByName(searchInput);
-	}
-}
-
-const searchBtn = document.querySelector('.search-form');
-searchBtn.addEventListener('submit', searchCity);
-
-// Call API for Daily Forecast
-function getForecast(coordinates) {
-	axios
-		.get(
-			`${apiOneCall}?lat=${coordinates.lat}&lon=${coordinates.lon}&exclude=minutely,hourly,alerts&appid=${apiKey}&units=${units}`
-		)
-		.then(displayForecast);
-}
-
-// Change Temperature Type & Formula to Toggle Between C & F Values
-const allTemps = document.querySelectorAll('#temp-now, .temps, .faded-temp');
-const fahrenheit = document.querySelectorAll('.fahrenheit');
-const celsius = document.querySelector('.celsius');
-const windUnit = document.querySelector('#wind-unit');
-
-function toggleTemp(event) {
-	event.preventDefault();
-	if (celsius.innerHTML === 'C') {
-		celsius.innerHTML = 'F';
-		fahrenheit.forEach(el => (el.innerHTML = 'C'));
-		allTemps.forEach(
-			el => (el.textContent = Math.round((el.innerHTML - 32) * (5 / 9)))
-		);
-		windUnit.innerHTML = `km/h`;
-		units = 'metric';
-	} else if (celsius.innerHTML === 'F') {
-		celsius.innerHTML = 'C';
-		fahrenheit.forEach(el => (el.innerHTML = 'F'));
-		allTemps.forEach(
-			el => (el.textContent = Math.round(el.innerHTML * (9 / 5) + 32))
-		);
-		windUnit.innerHTML = `mph`;
-		units = 'imperial';
-	}
-	// Update Data to Reflect Celsius or Fahrenheit Change
-	updateWeatherByName(locationHeading.textContent);
-}
-
-celsius.addEventListener('click', toggleTemp);
-
-// Variables for Elements Representing Data
-const currentTemp = document.querySelector('#temp-now');
-const highTemp = document.querySelector('#high-temp');
-const lowTemp = document.querySelector('#low-temp');
-const feelsLikeTemp = document.querySelector('#feels-like');
-const tempDescription = document.querySelector('#description-temp');
-const wind = document.querySelector('#wind');
-const humidity = document.querySelector('#humidity');
-const visibility = document.querySelector('#visibility');
-const clouds = document.querySelector('#clouds');
-const sunrise = document.querySelector('#sunrise-time');
-const sunset = document.querySelector('#sunset-time');
-const scenery = document.querySelector('#scenery');
-const conditionMsg = document.querySelector('#condition-msg');
-const todaysDate = document.querySelector('#today');
-
-// Display Temperature
-function displayCurrentTemperature(response) {
-	if (response.status == 200) {
-		const data = response.data;
-
-		// Sunset & Sunrise Times
-		const apiSunrise = data.sys.sunrise * 1000;
-		const apiSunset = data.sys.sunset * 1000;
-		const options = {
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: true,
-		};
-		sunrise.innerHTML = localDate(apiSunrise).toLocaleString([], options);
-		sunset.innerHTML = localDate(apiSunset).toLocaleString([], options);
-
-		// Get Local Date Object for Searched Cities
-		function localDate(unix) {
-			const date = new Date();
-			const timestamp = unix;
-			const offset = date.getTimezoneOffset() * 60000;
-			const utc = timestamp + offset;
-			const updatedDate = new Date(utc + 1000 * data.timezone);
-			return updatedDate;
-		}
-
-		// Change Current Time/Date to Location
-		const today = new Date();
-		const localToday = today.getTime();
-		const dateStatement = `${localDate(localToday).toLocaleDateString([], {
-			weekday: 'long',
-			month: 'long',
-			day: 'numeric',
-		})} at ${localDate(localToday).toLocaleString([], options)}`;
-		todaysDate.innerHTML = `${dateStatement}`;
-
-		// Change Landscape Image Based on Sunset / Sunrises
-		const sunriseHour = localDate(apiSunrise).getHours();
-		const sunsetHour = localDate(apiSunset).getHours();
-
-		localDate(localToday).getHours() < sunriseHour ||
-		localDate(localToday).getHours() >= sunsetHour
-			? (scenery.src = '/assets/night-landscape.png')
-			: (scenery.src = '/assets/day-landscape.png');
-
-		// Update Weather Details
-		locationHeading.innerHTML = `${data.name}, ${data.sys.country}`;
-		currentTemp.innerHTML = `${Math.round(data.main.temp)}`;
-		highTemp.innerHTML = `${Math.round(data.main.temp_max)}`;
-		lowTemp.innerHTML = `${Math.round(data.main.temp_min)}`;
-		feelsLikeTemp.innerHTML = `${Math.round(data.main.feels_like)}`;
-		tempDescription.innerHTML = `${data.weather[0].description}`;
-		wind.innerHTML = `${Math.round(data.wind.speed)}`;
-		humidity.innerHTML = `${data.main.humidity}`;
-		visibility.innerHTML = `${Math.round(data.visibility / 1000)}`;
-		clouds.innerHTML = `${data.clouds.all}`;
-
-		// Change Icon for Main Overview
-		axios.get('icons.json').then(icon => {
-			for (let i = 0; i < icon.data.length; i++) {
-				if (
-					data.weather[0].icon === icon.data[i].icon &&
-					data.weather[0].id === icon.data[i].id
-				) {
-					const mainWeatherIcon = document.querySelector('.default-main-icon');
-					mainWeatherIcon.setAttribute('src', icon.data[i].src);
-					mainWeatherIcon.setAttribute('alt', icon.data[i].alt);
-				}
-			}
-		});
-
-		// Weather Condition Message Indicator
-		const weatherType = data.weather[0].main;
-		if (
-			weatherType === 'Rain' ||
-			weatherType === 'Drizzle' ||
-			weatherType === 'Clouds'
-		) {
-			conditionMsg.innerHTML = `<i class="fa-solid fa-umbrella"></i> Umbrella Required`;
-		} else if (weatherType === 'Thunderstorm' || weatherType === 'Tornado') {
-			conditionMsg.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> Stay Indoors`;
-		} else if (weatherType === 'Snow') {
-			conditionMsg.innerHTML = `<i class="fa-solid fa-snowflake"></i> Dress Warm`;
-		} else if (weatherType === 'Clear') {
-			conditionMsg.innerHTML = `<i class="fa-solid fa-circle-check"></i> Ideal Conditions`;
-		} else if (
-			weatherType === 'Mist' ||
-			weatherType === 'Fog' ||
-			weatherType === 'Haze'
-		) {
-			conditionMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Poor Visibility`;
-		} else {
-			conditionMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Poor Air Quality`;
-		}
-
-		// Call Daily Forecast Function Based on Current Location Data
-		getForecast(response.data.coord);
-
-		// Local Storage
-		localStorage.setItem('location', `${data.name}`);
-	}
-}
-
-// Display Daily Forecast Data
-function displayForecast(response) {
-	// Added Dew Point // Original API Call Does Not Support
-	const dewPoint = document.querySelector('#dew-point');
-	dewPoint.innerHTML = `${Math.round(response.data.current.dew_point)}`;
-	// Daily Forecast
-	const forecastData = response.data.daily;
-	const forecastContainer = document.querySelector('.full-forecast');
-	let forecastHTML = '';
-	forecastData.forEach(function (day, index) {
-		if (index < 7) {
-			forecastHTML += `<div class="daily m-2 m-md-0">
-							<p>${formatDay(day.dt)}</p>
-							<img
-								src="/assets/loading.svg"
-								class="weather-icon forecast-icon mb-2"
-								height="45px"
-								width="50px"
-							/>
-							<p>
-								<span class="temps">${Math.round(
-									day.temp.max
-								)}</span>°<span class="fahrenheit">${
-				units === 'metric' ? 'C' : 'F'
-			} </span
-								><br />
-								<span class="daily-low">
-									<span class="forecast-low temps">${Math.round(
-										day.temp.min
-									)}</span>°<span class="fahrenheit"
-										>${units === 'metric' ? 'C' : 'F'}
-									</span>
-								</span>
-							</p>
-						</div>
-						`;
-			// Icon Matching for Each Daily Forecast
-			axios.get('icons.json').then(icon => {
-				for (let i = 0; i < icon.data.length; i++) {
-					if (
-						day.weather[0].id === icon.data[i].id &&
-						day.weather[0].icon === icon.data[i].icon
-					) {
-						forecastHTML = forecastHTML.replace(
-							'src="/assets/loading.svg"',
-							`src="${icon.data[i].src}"`
-						);
-					}
-				}
-				forecastContainer.innerHTML = forecastHTML;
-			});
-		}
-	});
-}
-// Format Daily Forecast Unix Timestamps
-function formatDay(unix) {
-	const date = new Date(unix * 1000);
-	const day = date.getDay();
-	const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-	return days[day];
-}
-
-// Display Temperatures for Global Forecast (Default)
-const cityTemps = document.querySelectorAll('.global-temps');
-const cityWeatherDesc = document.querySelectorAll('.global-descriptions');
-const cityNames = document.querySelectorAll('.global-name');
-const countryNames = document.querySelectorAll('.country-name');
-const cities = [
-	'Seattle',
-	'Rabat',
-	'London',
-	'Paris',
-	'Delhi',
-	'Jakarta',
-	'Manila',
-	'Shanghai',
-	'Tokyo',
-	'Cairo',
-	'Dhaka',
-	'New York',
-	'Istanbul',
-	'Los Angeles',
-	'Munich',
-	'Dubai',
-];
-
-// Shuffle Array for Randomized Cities
-cities.sort(() => Math.random() - 0.5);
-
-// Default Information for Global Forecast Section
-function displayGlobalTemperature() {
-	for (let i = 0; i < 5; i++) {
-		axios
-			.get(`${apiWeather}?q=${cities[i]}&appid=${apiKey}&units=${units}`)
-			.then(response => {
-				const data = response.data;
-				cityNames[i].innerHTML = `${data.name}`;
-				countryNames[i].innerHTML = `${data.sys.country}`;
-				cityTemps[i].innerHTML = Math.round(data.main.temp);
-				cityWeatherDesc[i].innerHTML = `${data.weather[0].description}`;
-				axios.get('icons.json').then(icon => {
-					for (let k = 0; k < icon.data.length; k++) {
-						if (
-							data.weather[0].id === icon.data[k].id &&
-							data.weather[0].icon === icon.data[k].icon
-						) {
-							let globalWeatherIcon = document.querySelectorAll('.global-icon');
-							globalWeatherIcon[i].setAttribute('src', icon.data[k].src);
-							globalWeatherIcon[i].setAttribute('alt', icon.data[k].alt);
-						}
-					}
-				});
-			});
-	}
-}
-
-// Click on "Other Cities" To Display Weather For That Region
-let globalContainers = document.querySelectorAll('.global-item');
-
-for (let i = 0; i < 5; i++) {
-	globalContainers[i].addEventListener('click', () => {
-		updateWeatherByName(cities[i]);
-		window.scrollTo({
-			top: 0,
-			behavior: 'smooth',
-		});
-	});
-}
-
-// Default Location to Show
-displayGlobalTemperature();
